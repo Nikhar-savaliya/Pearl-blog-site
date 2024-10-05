@@ -5,41 +5,50 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import admin from "firebase-admin";
 import { getAuth } from "firebase-admin/auth";
-import fs from "fs";
-
-// const serviceAccountKey = await JSON.parse(
-//   fs.readFileSync(
-//     "./quill-blogs-firebase-adminsdk-dfmww-52fe1162bd.json",
-//     "utf8"
-//   )
-// );
+import cors from "cors";
+import { nanoid } from "nanoid";
 
 // SCHEMA
 import User from "./Schema/User.js";
 import Blog from "./Schema/Blog.js";
 import Notification from "./Schema/Notification.js";
 
-import { nanoid } from "nanoid";
-import cors from "cors";
-
 const server = express();
 
 server.use(express.json());
 server.use(cors());
 
-let PORT = 3000;
-
-// admin.initializeApp({
-//   credential: admin.credential.cert(serviceAccountKey),
-// });
+// Initialize Firebase Admin SDK with environment variables
+admin.initializeApp({
+  credential: admin.credential.cert({
+    projectId: process.env.FIREBASE_PROJECT_ID,
+    clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+    privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, "\n"),
+  }),
+});
 
 let emailRegex = /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/; // regex for email
 let passwordRegex = /^(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{6,20}$/; // regex for password
 
-// ------- CONNECT WITH MONGODB ----------
-mongoose
-  .connect(process.env.MONGODB_URI, { autoIndex: true })
-  .then(() => console.log("mongoDB connected"));
+// MongoDB connection
+let cachedDb = null;
+
+async function connectToDatabase() {
+  if (cachedDb) {
+    return cachedDb;
+  }
+  const db = await mongoose.connect(process.env.MONGODB_URI, {
+    autoIndex: true,
+  });
+  cachedDb = db;
+  return db;
+}
+
+// Use this middleware to ensure database connection before processing requests
+server.use(async (req, res, next) => {
+  await connectToDatabase();
+  next();
+});
 
 //  ------------- MIDDLEWARE --------------
 
@@ -502,8 +511,11 @@ server.post("/isliked-by-user", verifyJWT, (req, res) => {
 });
 
 // ------------- SERVER LISTENING ON PORT 3000 -----------
-server.listen(PORT, () => {
-  console.log(`server started at port:  ${PORT}`);
+// Global error handler
+server.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).send("Something broke!");
 });
 
+// Export the Express app
 export default server;
