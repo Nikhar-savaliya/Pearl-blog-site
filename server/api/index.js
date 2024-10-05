@@ -38,7 +38,7 @@ let passwordRegex = /^(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{6,20}$/; // regex for pass
 
 // ------- CONNECT WITH MONGODB ----------
 mongoose
-  .connect(process.env.DB_URI, { autoIndex: true })
+  .connect(process.env.MONGODB_URI, { autoIndex: true })
   .then(() => console.log("mongoDB connected"));
 
 //  ------------- MIDDLEWARE --------------
@@ -505,3 +505,5 @@ server.post("/isliked-by-user", verifyJWT, (req, res) => {
 server.listen(PORT, () => {
   console.log(`server started at port:  ${PORT}`);
 });
+
+export default server;
